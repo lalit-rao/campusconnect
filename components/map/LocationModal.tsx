@@ -1,18 +1,25 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, ScrollView } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-import { X, Navigation, Clock, Star, MessageSquare } from 'lucide-react-native';
+import { X, Navigation, Clock, Star, MessageSquare, Eye } from 'lucide-react-native';
+import Free3DView from './Free3DView';
+import Campus3DModel from './Campus3DModel';
+import { useState } from 'react';
 
 type LocationModalProps = {
   location: {
     id: number;
     name: string;
     category: string;
+    latitude: number;
+    longitude: number;
   };
   onClose: () => void;
 };
 
 export default function LocationModal({ location, onClose }: LocationModalProps) {
   const { colors } = useTheme();
+  const [showFree3D, setShowFree3D] = useState(false);
+  const [show3DModel, setShow3DModel] = useState(false);
   
   return (
     <Modal
@@ -151,16 +158,48 @@ export default function LocationModal({ location, onClose }: LocationModalProps)
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: 1 }]}
+              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+              onPress={() => setShow3DModel(true)}
             >
-              <MessageSquare size={16} color={colors.text} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>
-                Add Review
-              </Text>
+              <Eye size={16} color="white" />
+              <Text style={styles.actionButtonText}>3D Campus</Text>
             </TouchableOpacity>
           </View>
+          
+          <TouchableOpacity 
+            style={[styles.reviewButton, { backgroundColor: colors.cardBackground, borderColor: colors.border, borderWidth: 1 }]}
+          >
+            <MessageSquare size={16} color={colors.text} />
+            <Text style={[styles.reviewButtonText, { color: colors.text }]}>
+              Add Review
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
+      
+      {show3DModel && (
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={show3DModel}
+          onRequestClose={() => setShow3DModel(false)}
+        >
+          <View style={styles.streetViewContainer}>
+            <TouchableOpacity
+              style={styles.streetViewCloseButton}
+              onPress={() => setShow3DModel(false)}
+            >
+              <X size={24} color="white" />
+            </TouchableOpacity>
+            <Campus3DModel
+              selectedBuilding={location.name}
+              onBuildingClick={(building) => {
+                console.log('Building clicked:', building);
+              }}
+            />
+          </View>
+        </Modal>
+      )}
     </Modal>
   );
 }
@@ -284,6 +323,35 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     flex: 0.48,
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  reviewButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+  },
+  streetViewContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
+  streetViewCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButtonText: {
     marginLeft: 8,

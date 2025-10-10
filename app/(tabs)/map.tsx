@@ -2,35 +2,49 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { ChevronDown, Navigation, Clock, Star } from 'lucide-react-native';
+import { ChevronDown, Navigation, Clock, Star, Layers, Box, Route } from 'lucide-react-native';
 import LocationModal from '@/components/map/LocationModal';
+import FreeMapView from '@/components/map/FreeMapView';
+import Campus3DModel from '@/components/map/Campus3DModel';
+import NavigationMapView from '@/components/map/NavigationMapView';
 
 const filters = ['Libraries', 'Cafeterias', 'Departments', 'Dorms', 'Offices'];
 
+// 📍 CHANGE MARKER POSITIONS HERE - Just modify latitude/longitude
 const campusLocations = [
-  { id: 1, name: 'Main Library', category: 'Libraries', latitude: 37.7749, longitude: -122.4194 },
-  { id: 2, name: 'Student Union', category: 'Cafeterias', latitude: 37.7750, longitude: -122.4184 },
-  { id: 3, name: 'Science Building', category: 'Departments', latitude: 37.7752, longitude: -122.4174 },
-  { id: 4, name: 'West Dormitory', category: 'Dorms', latitude: 37.7747, longitude: -122.4190 },
-  { id: 5, name: 'Admin Office', category: 'Offices', latitude: 37.7745, longitude: -122.4180 },
+  { id: 1, name: 'Central Library', category: 'Libraries', latitude: 26.8429, longitude: 75.5644 },
+  { id: 2, name: 'Food Court', category: 'Cafeterias', latitude: 26.8435, longitude: 75.5650 },
+  { id: 3, name: 'Engineering Block', category: 'Departments', latitude: 26.8440, longitude: 75.5655 },
+  { id: 4, name: 'Boys Hostel', category: 'Dorms', latitude: 26.8425, longitude: 75.5640 },
+  { id: 5, name: 'Admin Block', category: 'Offices', latitude: 26.8430, longitude: 75.5645 },
+  { id: 6, name: 'Medical Block', category: 'Departments', latitude: 26.8445, longitude: 75.5660 },
+  { id: 7, name: 'Sports Complex', category: 'Offices', latitude: 26.8420, longitude: 75.5635 },
+  { id: 8, name: 'Girls Hostel', category: 'Dorms', latitude: 26.8450, longitude: 75.5665 },
+  
+  // 🆕 ADD NEW MARKERS HERE:
+  // { id: 9, name: 'New Building', category: 'Departments', latitude: 26.8455, longitude: 75.5670 },
 ];
 
 export default function MapScreen() {
   const { colors } = useTheme();
-  const [selectedCampus, setSelectedCampus] = useState('Main Campus');
+  const [selectedCampus, setSelectedCampus] = useState('Manipal University Jaipur');
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [mapType, setMapType] = useState('standard');
+  const [view3D, setView3D] = useState(false);
+  const [navigationMode, setNavigationMode] = useState(true);
+  const [routeData, setRouteData] = useState(null);
 
   const filteredLocations = activeFilter === 'All'
     ? campusLocations
     : campusLocations.filter(loc => loc.category === activeFilter);
 
+  // 🗺️ CHANGE MAP CENTER HERE
   const initialRegion = {
-    latitude: 37.7749,
-    longitude: -122.4194,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
+    latitude: 26.8435,    // Move map center up/down
+    longitude: 75.5650,   // Move map center left/right  
+    latitudeDelta: 0.008, // Zoom level (smaller = more zoomed in)
+    longitudeDelta: 0.008,
   };
 
   return (
@@ -40,71 +54,46 @@ export default function MapScreen() {
           <Text style={[styles.campusText, { color: colors.text }]}>{selectedCampus}</Text>
           <ChevronDown size={20} color={colors.text} />
         </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.mapTypeButton, { backgroundColor: view3D ? '#ff6b6b' : colors.primary }]}
+          onPress={() => {
+            setView3D(!view3D);
+          }}
+        >
+          <View style={styles.buttonContent}>
+            <Box size={18} color="white" />
+            <Text style={styles.buttonText}>3D View</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={initialRegion}
-        >
-          {filteredLocations.map((location) => (
-            <Marker
-              key={location.id}
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude
-              }}
-              onPress={() => setSelectedLocation(location)}
-            />
-          ))}
-        </MapView>
+        {view3D ? (
+          <Campus3DModel
+            onBuildingClick={(building) => {
+              const location = filteredLocations.find(loc => loc.name.includes(building.split(' ')[0]));
+              if (location) setSelectedLocation(location);
+            }}
+          />
+        ) : (
+          <NavigationMapView
+            latitude={initialRegion.latitude}
+            longitude={initialRegion.longitude}
+            onRouteCalculated={setRouteData}
+          />
+        )}
       </View>
 
-      <View style={styles.filtersContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersScroll}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              activeFilter === 'All' && { backgroundColor: colors.primary },
-            ]}
-            onPress={() => setActiveFilter('All')}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === 'All' && { color: 'white' },
-              ]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
 
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[
-                styles.filterButton,
-                activeFilter === filter && { backgroundColor: colors.primary },
-              ]}
-              onPress={() => setActiveFilter(filter)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  activeFilter === filter && { color: 'white' },
-                ]}
-              >
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      
+      {navigationMode && routeData && (
+        <View style={[styles.routeInfoContainer, { backgroundColor: colors.background }]}>
+          <Text style={[styles.routeTitle, { color: colors.text }]}>Route Information</Text>
+          <Text style={[styles.routeDetail, { color: colors.text }]}>Distance: {routeData.distance}m</Text>
+          <Text style={[styles.routeDetail, { color: colors.text }]}>Walking time: ~{routeData.duration} minutes</Text>
+        </View>
+      )}
 
       {selectedLocation && (
         <LocationModal
@@ -124,7 +113,7 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
   campusSelector: {
     flexDirection: 'row',
@@ -165,5 +154,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
     color: '#666',
+  },
+  mapTypeButton: {
+    padding: 12,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+  },
+  routeInfoContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  routeTitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
+    marginBottom: 8,
+  },
+  routeDetail: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 4,
   },
 });
