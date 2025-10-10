@@ -1,96 +1,173 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
-import { Search } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
+import { Search, Plus } from 'lucide-react-native';
 import { TextInput } from 'react-native-gesture-handler';
-
-const chats = [
-  {
-    id: '1',
-    name: 'Student Ambassador',
-    lastMessage: 'Hi there! How can I help you today?',
-    time: '10:30 AM',
-    avatar: 'https://images.pexels.com/photos/5212361/pexels-photo-5212361.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    unread: 2,
-  },
-  {
-    id: '2',
-    name: 'Housing Support',
-    lastMessage: 'Your dorm assignment has been confirmed.',
-    time: 'Yesterday',
-    avatar: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    unread: 0,
-  },
-  {
-    id: '3',
-    name: 'Academic Advisor',
-    lastMessage: 'Let\'s schedule your course advising session',
-    time: 'Yesterday',
-    avatar: 'https://images.pexels.com/photos/5212702/pexels-photo-5212702.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    unread: 0,
-  },
-  {
-    id: '4',
-    name: 'International Office',
-    lastMessage: 'Your visa documents are ready for pickup',
-    time: 'Monday',
-    avatar: 'https://images.pexels.com/photos/3194518/pexels-photo-3194518.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    unread: 0,
-  },
-];
+import { subscribeToUserChats, getAllUsers, createOrGetChat, Chat } from '@/services/messageService';
 
 export default function MessagesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [showUsers, setShowUsers] = useState(false);
 
-  const renderChatItem = ({ item }) => (
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = subscribeToUserChats(user.id, (userChats) => {
+      setChats(userChats);
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  const loadUsers = async () => {
+    if (!user) return;
+    try {
+      const allUsers = await getAllUsers(user.id);
+      setUsers(allUsers);
+      setShowUsers(true);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load users');
+    }
+  };
+
+  const startChat = async (otherUser: any) => {
+    if (!user) return;
+    try {
+      const chatId = await createOrGetChat(
+        user.id,
+        otherUser.id,
+        user.name,
+        otherUser.name,
+        user.profilePic,
+        otherUser.profilePic
+      );
+      setShowUsers(false);
+      router.push(`/chat?chatId=${chatId}&otherUserName=${otherUser.name}`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to start chat');
+    }
+  };
+
+  const renderChatItem = ({ item }: { item: Chat }) => {
+    if (!user) return null;
+    
+    const otherUserId = item.participants.find(id => id !== user.id);
+    const otherUserName = otherUserId ? item.participantNames[otherUserId] : 'Unknown';
+    const otherUserAvatar = otherUserId ? item.participantAvatars[otherUserId] : '';
+    const unreadCount = item.unreadCount?.[user.id] || 0;
+    
+    const formatTime = (timestamp: any) => {
+      if (!timestamp) return '';
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      
+      if (days === 0) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else if (days === 1) {
+        return 'Yesterday';
+      } else {
+        return date.toLocaleDateString();
+      }
+    };
+
+    return (
+      <TouchableOpacity 
+        style={styles.chatItem}
+        onPress={() => router.push(`/chat?chatId=${item.id}&otherUserName=${otherUserName}`)}
+      >
+        <Image 
+          source={{ 
+            uri: otherUserAvatar || 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2' 
+          }} 
+          style={styles.avatar} 
+        />
+        
+        <View style={styles.chatDetails}>
+          <View style={styles.chatHeader}>
+            <Text style={[styles.chatName, { color: colors.text }]}>{otherUserName}</Text>
+            <Text style={styles.chatTime}>{formatTime(item.lastMessageTime)}</Text>
+          </View>
+          
+          <View style={styles.messageRow}>
+            <Text 
+              style={[
+                styles.lastMessage, 
+                { color: unreadCount > 0 ? colors.text : colors.secondaryText }
+              ]}
+              numberOfLines={1}
+            >
+              {item.lastMessage || 'Start a conversation'}
+            </Text>
+            
+            {unreadCount > 0 && (
+              <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.unreadCount}>{unreadCount}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderUserItem = ({ item }: { item: any }) => (
     <TouchableOpacity 
       style={styles.chatItem}
-      onPress={() => router.push('/chat')}
+      onPress={() => startChat(item)}
     >
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image 
+        source={{ 
+          uri: item.profilePic || 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2' 
+        }} 
+        style={styles.avatar} 
+      />
       
       <View style={styles.chatDetails}>
-        <View style={styles.chatHeader}>
-          <Text style={[styles.chatName, { color: colors.text }]}>{item.name}</Text>
-          <Text style={styles.chatTime}>{item.time}</Text>
-        </View>
-        
-        <View style={styles.messageRow}>
-          <Text 
-            style={[
-              styles.lastMessage, 
-              { color: item.unread ? colors.text : colors.secondaryText }
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMessage}
-          </Text>
-          
-          {item.unread > 0 && (
-            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.unreadCount}>{item.unread}</Text>
-            </View>
-          )}
-        </View>
+        <Text style={[styles.chatName, { color: colors.text }]}>{item.name}</Text>
+        <Text style={[styles.lastMessage, { color: colors.secondaryText }]}>
+          {item.country || 'Tap to start chatting'}
+        </Text>
       </View>
     </TouchableOpacity>
   );
+
+  if (!user) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.center}>
+          <Text style={[styles.errorText, { color: colors.text }]}>Please log in to view messages</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Messages</Text>
+        <TouchableOpacity 
+          style={[styles.newChatButton, { backgroundColor: colors.primary }]}
+          onPress={showUsers ? () => setShowUsers(false) : loadUsers}
+        >
+          <Plus size={20} color="white" />
+        </TouchableOpacity>
       </View>
       
       <View style={[styles.searchContainer, { backgroundColor: colors.inputBackground }]}>
         <Search size={20} color={colors.secondaryText} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search conversations..."
+          placeholder={showUsers ? "Search users..." : "Search conversations..."}
           placeholderTextColor={colors.secondaryText}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -98,11 +175,18 @@ export default function MessagesScreen() {
       </View>
 
       <FlatList
-        data={chats}
+        data={showUsers ? users : chats}
         keyExtractor={(item) => item.id}
-        renderItem={renderChatItem}
+        renderItem={showUsers ? renderUserItem : renderChatItem}
         contentContainerStyle={styles.chatList}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+              {showUsers ? 'No users found' : 'No conversations yet'}
+            </Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );
@@ -113,6 +197,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 8,
@@ -120,6 +206,27 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: 'Poppins-Bold',
+    flex: 1,
+  },
+  newChatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
   },
   searchContainer: {
     flexDirection: 'row',

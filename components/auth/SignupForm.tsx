@@ -14,11 +14,10 @@ export default function SignupForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [country, setCountry] = useState('');
   const [error, setError] = useState('');
 
   const handleSignup = async () => {
-    if (!fullName || !email || !password || !confirmPassword || !country) {
+    if (!fullName || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
     }
@@ -35,30 +34,11 @@ export default function SignupForm() {
 
     try {
       setError('');
-      await signup(email, password, { fullName, country });
-      router.replace('/(tabs)');
+      await signup(email, password, { fullName });
+      router.replace('/profile-setup');
     } catch (err: any) {
-      const errorCode = err.code;
-      let errorMessage = 'Sign up failed. Please try again.';
-      
-      switch (errorCode) {
-        case 'auth/email-already-in-use':
-          errorMessage = 'An account with this email already exists.';
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Please enter a valid email address.';
-          break;
-        case 'auth/weak-password':
-          errorMessage = 'Password is too weak. Use at least 6 characters.';
-          break;
-        case 'auth/network-request-failed':
-          errorMessage = 'Network error. Please check your connection.';
-          break;
-        default:
-          errorMessage = 'Sign up failed. Please try again.';
-      }
-      
-      setError(errorMessage);
+      console.error('Signup error:', err);
+      setError(err.message || 'Sign up failed. Please try again.');
     }
   };
 
@@ -126,18 +106,7 @@ export default function SignupForm() {
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <View style={[styles.inputContainer, { backgroundColor: '#F5F5F5' }]}>
-          <Flag size={20} color={colors.secondaryText} style={styles.inputIcon} />
-          <TextInput
-            style={[styles.input, { color: colors.Entertext }]}
-            placeholder="Country of Origin"
-            placeholderTextColor={colors.secondaryText}
-            value={country}
-            onChangeText={setCountry}
-          />
-        </View>
-      </View>
+
 
       <TouchableOpacity
         style={[styles.signupButton, { backgroundColor: colors.primary }]}

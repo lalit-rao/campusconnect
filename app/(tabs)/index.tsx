@@ -5,18 +5,48 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import DashboardCard from '@/components/home/DashboardCard';
-import { Map, Globe, CalendarDays, CircleHelp as HelpCircle } from 'lucide-react-native';
+import { Map, Globe, CalendarDays, CircleHelp as HelpCircle, MessageCircle } from 'lucide-react-native';
 import { getGreeting } from '@/utils/helpers';
+import { getAllUsers, createOrGetChat } from '@/services/messageService';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
   const [greeting, setGreeting] = useState('');
+  const [languageBuddies, setLanguageBuddies] = useState([]);
 
   useEffect(() => {
     setGreeting(getGreeting());
-  }, []);
+    loadLanguageBuddies();
+  }, [user]);
+
+  const loadLanguageBuddies = async () => {
+    if (!user) return;
+    try {
+      const users = await getAllUsers(user.id);
+      setLanguageBuddies(users.slice(0, 3));
+    } catch (error) {
+      console.error('Error loading language buddies:', error);
+    }
+  };
+
+  const startChat = async (otherUser: any) => {
+    if (!user) return;
+    try {
+      const chatId = await createOrGetChat(
+        user.id,
+        otherUser.id,
+        user.name,
+        otherUser.name,
+        user.profilePic,
+        otherUser.profilePic
+      );
+      router.push(`/chat?chatId=${chatId}&otherUserName=${otherUser.name}`);
+    } catch (error) {
+      console.error('Error starting chat:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -42,15 +72,15 @@ export default function HomeScreen() {
               style={styles.featuredImage}
             />
             <View style={styles.featuredContent}>
-              <Text style={[styles.featuredTitle, { color: colors.text }]}>Campus Tour</Text>
+              <Text style={[styles.featuredTitle, { color: colors.text }]}>Academic Calendar</Text>
               <Text style={[styles.featuredDescription, { color: colors.secondaryText }]}>
-                Join us for a guided campus tour today at 2 PM
+                Check out important academic dates, exams, and events
               </Text>
               <TouchableOpacity
                 style={[styles.featuredButton, { backgroundColor: colors.primary }]}
                 onPress={() => router.push('/events')}
               >
-                <Text style={styles.featuredButtonText}>Join Now</Text>
+                <Text style={styles.featuredButtonText}>View Now</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -102,22 +132,32 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.recommendedScroll}
         >
-          {[1, 2, 3].map((item) => (
-            <TouchableOpacity
-              key={item}
+          {languageBuddies.length > 0 ? languageBuddies.map((buddy) => (
+            <View
+              key={buddy.id}
               style={[styles.buddyCard, { backgroundColor: colors.cardBackground }]}
-              onPress={() => router.push('/language-buddy')}
             >
               <Image
-                source={{ uri: `https://images.pexels.com/photos/${3190334 + item}/pexels-photo-${3190334 + item}.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2` }}
+                source={{ uri: buddy.profilePic || 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2' }}
                 style={styles.buddyImage}
               />
-              <Text style={[styles.buddyName, { color: colors.text }]}>Student {item}</Text>
+              <Text style={[styles.buddyName, { color: colors.text }]}>{buddy.name}</Text>
               <Text style={[styles.buddyLanguage, { color: colors.secondaryText }]}>
-                Speaks English, Spanish
+                {buddy.languages?.join(', ') || 'English'}
               </Text>
-            </TouchableOpacity>
-          ))}
+              <TouchableOpacity
+                style={[styles.chatButton, { backgroundColor: colors.primary }]}
+                onPress={() => startChat(buddy)}
+              >
+                <MessageCircle size={14} color="white" />
+                <Text style={styles.chatButtonText}>Chat</Text>
+              </TouchableOpacity>
+            </View>
+          )) : (
+            <View style={[styles.buddyCard, { backgroundColor: colors.cardBackground }]}>
+              <Text style={[styles.emptyBuddyText, { color: colors.secondaryText }]}>No users found</Text>
+            </View>
+          )}
         </ScrollView>
       </ScrollView>
     </SafeAreaView>
@@ -252,5 +292,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 4,
+    marginBottom: 8,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  chatButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+    marginLeft: 4,
+  },
+  emptyBuddyText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

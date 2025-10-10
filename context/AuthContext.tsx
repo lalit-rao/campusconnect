@@ -20,6 +20,7 @@ type User = {
   country?: string;
   languages?: string[];
   interests?: string[];
+  profileSetupComplete?: boolean;
 };
 
 type AuthContextType = {
@@ -62,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             country: userData?.country,
             languages: userData?.languages || ['English'],
             interests: userData?.interests || [],
+            profileSetupComplete: userData?.profileSetupComplete || false,
           };
           
           setUser(user);
@@ -98,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         country: userData?.country,
         languages: userData?.languages || ['English'],
         interests: userData?.interests || [],
+        profileSetupComplete: userData?.profileSetupComplete || false,
       };
       
       setUser(user);
@@ -122,9 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: userData.fullName,
         email: firebaseUser.email!,
         profilePic: 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-        country: userData.country,
-        languages: ['English'],
-        interests: ['Music', 'Sports', 'Technology'],
+        country: '',
+        languages: [],
+        interests: [],
+        profileSetupComplete: false,
         createdAt: new Date().toISOString(),
       };
       

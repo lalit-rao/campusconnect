@@ -1,88 +1,82 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { ChevronLeft, ChevronDown, Flag, MessagesSquare } from 'lucide-react-native';
+import { getAllUsers, createOrGetChat } from '@/services/messageService';
 
 const languages = [
   'English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Arabic', 'Hindi'
 ];
 
-const buddies = [
-  {
-    id: '1',
-    name: 'Emma Wilson',
-    country: 'USA',
-    speaks: ['English', 'Spanish'],
-    learning: ['French'],
-    interests: ['Music', 'Travel'],
-    image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-  },
-  {
-    id: '2',
-    name: 'Luisa Garcia',
-    country: 'Spain',
-    speaks: ['Spanish', 'French'],
-    learning: ['English'],
-    interests: ['Cooking', 'Cinema'],
-    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-  },
-  {
-    id: '3',
-    name: 'Hiroshi Tanaka',
-    country: 'Japan',
-    speaks: ['Japanese', 'English'],
-    learning: ['Spanish'],
-    interests: ['Technology', 'Anime'],
-    image: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-  },
-  {
-    id: '4',
-    name: 'Sophie Dupont',
-    country: 'France',
-    speaks: ['French', 'English'],
-    learning: ['Chinese'],
-    interests: ['Art', 'Dancing'],
-    image: 'https://images.pexels.com/photos/1036623/pexels-photo-1036623.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-  },
-  {
-    id: '5',
-    name: 'Wei Zhang',
-    country: 'China',
-    speaks: ['Chinese', 'English'],
-    learning: ['German'],
-    interests: ['Sports', 'Photography'],
-    image: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-  },
-];
-
 export default function LanguageBuddyScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [languageFilter, setLanguageFilter] = useState('English');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState('suggestions');
+  const [buddies, setBuddies] = useState([]);
 
-  const filteredBuddies = buddies.filter(buddy => buddy.speaks.includes(languageFilter));
+  useEffect(() => {
+    loadBuddies();
+  }, [user]);
+
+  const loadBuddies = async () => {
+    if (!user) return;
+    try {
+      const users = await getAllUsers(user.id);
+      setBuddies(users);
+    } catch (error) {
+      console.error('Error loading buddies:', error);
+    }
+  };
+
+  const startChat = async (otherUser: any) => {
+    if (!user) return;
+    try {
+      const chatId = await createOrGetChat(
+        user.id,
+        otherUser.id,
+        user.name,
+        otherUser.name,
+        user.profilePic,
+        otherUser.profilePic
+      );
+      router.push(`/chat?chatId=${chatId}&otherUserName=${otherUser.name}`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to start chat');
+    }
+  };
+
+  const filteredBuddies = buddies.filter(buddy => 
+    buddy.languages?.some(lang => lang.toLowerCase().includes(languageFilter.toLowerCase()))
+  );
 
   const renderBuddyItem = ({ item }) => (
     <View style={[styles.buddyCard, { backgroundColor: colors.cardBackground }]}>
       <View style={styles.buddyHeader}>
-        <Image source={{ uri: item.image }} style={styles.buddyImage} />
+        <Image 
+          source={{ 
+            uri: item.profilePic || 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2' 
+          }} 
+          style={styles.buddyImage} 
+        />
         <View style={styles.buddyInfo}>
           <Text style={[styles.buddyName, { color: colors.text }]}>{item.name}</Text>
           <View style={styles.countryRow}>
             <Flag size={16} color={colors.secondaryText} />
-            <Text style={[styles.countryText, { color: colors.secondaryText }]}>{item.country}</Text>
+            <Text style={[styles.countryText, { color: colors.secondaryText }]}>{item.country || 'Unknown'}</Text>
           </View>
         </View>
       </View>
       
       <View style={styles.languageSection}>
-        <Text style={[styles.languageLabel, { color: colors.secondaryText }]}>Speaks</Text>
+        <Text style={[styles.languageLabel, { color: colors.secondaryText }]}>Languages</Text>
         <View style={styles.languageTags}>
-          {item.speaks.map((lang) => (
+          {(item.languages || ['English']).map((lang) => (
             <View 
               key={lang}
               style={[styles.languageTag, { backgroundColor: colors.primary + '20' }]}
@@ -93,38 +87,20 @@ export default function LanguageBuddyScreen() {
         </View>
       </View>
       
-      <View style={styles.languageSection}>
-        <Text style={[styles.languageLabel, { color: colors.secondaryText }]}>Learning</Text>
-        <View style={styles.languageTags}>
-          {item.learning.map((lang) => (
-            <View 
-              key={lang}
-              style={[styles.languageTag, { backgroundColor: '#FF985F20' }]}
-            >
-              <Text style={[styles.languageTagText, { color: '#FF985F' }]}>{lang}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-      
       <View style={styles.interestsSection}>
         <Text style={[styles.interestsLabel, { color: colors.secondaryText }]}>Interests</Text>
-        <Text style={[styles.interestsText, { color: colors.text }]}>{item.interests.join(', ')}</Text>
+        <Text style={[styles.interestsText, { color: colors.text }]}>
+          {item.interests?.join(', ') || 'Music, Sports, Technology'}
+        </Text>
       </View>
       
-      <View style={styles.buttonsRow}>
-        <TouchableOpacity 
-          style={[styles.messageButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/chat')}
-        >
-          <MessagesSquare size={16} color="white" />
-          <Text style={styles.messageButtonText}>Message</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={[styles.connectButton, { borderColor: colors.primary }]}>
-          <Text style={[styles.connectButtonText, { color: colors.primary }]}>Send Request</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity 
+        style={[styles.messageButton, { backgroundColor: colors.primary }]}
+        onPress={() => startChat(item)}
+      >
+        <MessagesSquare size={16} color="white" />
+        <Text style={styles.messageButtonText}>Message</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -177,41 +153,8 @@ export default function LanguageBuddyScreen() {
         )}
       </View>
 
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'suggestions' && [styles.activeTab, { borderColor: colors.primary }],
-          ]}
-          onPress={() => setActiveTab('suggestions')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'suggestions' && [styles.activeTabText, { color: colors.primary }],
-            ]}
-          >
-            Suggestions
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'buddies' && [styles.activeTab, { borderColor: colors.primary }],
-          ]}
-          onPress={() => setActiveTab('buddies')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'buddies' && [styles.activeTabText, { color: colors.primary }],
-            ]}
-          >
-            My Buddies
-          </Text>
-        </TouchableOpacity>
-      </View>
+      
+      
       
       <FlatList
         data={filteredBuddies}
@@ -222,7 +165,7 @@ export default function LanguageBuddyScreen() {
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
-              No {activeTab === 'suggestions' ? 'suggestions' : 'buddies'} available
+              {buddies.length === 0 ? 'No users registered yet' : `No users speak ${languageFilter}`}
             </Text>
           </View>
         )}
@@ -393,17 +336,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
   },
-  buttonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   messageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    flex: 0.48,
     justifyContent: 'center',
   },
   messageButtonText: {
@@ -412,19 +350,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
-  connectButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    flex: 0.48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  connectButtonText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-  },
+
   emptyContainer: {
     padding: 24,
     alignItems: 'center',

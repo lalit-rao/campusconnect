@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ScrollView, Alert, Image } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import { X, Check } from 'lucide-react-native';
+import { X, Check, Camera } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 type ProfileEditModalProps = {
   visible: boolean;
@@ -18,7 +19,27 @@ export default function ProfileEditModal({ visible, onClose, userData }: Profile
   const [country, setCountry] = useState(userData?.country || '');
   const [languages, setLanguages] = useState(userData?.languages?.join(', ') || '');
   const [interests, setInterests] = useState(userData?.interests?.join(', ') || '');
+  const [profilePic, setProfilePic] = useState(userData?.profilePic || '');
   const [isLoading, setIsLoading] = useState(false);
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant camera roll permissions to change profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setProfilePic(result.assets[0].uri);
+    }
+  };
   
   const handleSave = async () => {
     if (!name.trim()) {
@@ -33,6 +54,7 @@ export default function ProfileEditModal({ visible, onClose, userData }: Profile
         country: country.trim(),
         languages: languages.split(',').map(lang => lang.trim()).filter(lang => lang),
         interests: interests.split(',').map(interest => interest.trim()).filter(interest => interest),
+        profilePic: profilePic,
       };
       
       await updateUserProfile(updatedData);
@@ -69,6 +91,19 @@ export default function ProfileEditModal({ visible, onClose, userData }: Profile
           </View>
           
           <ScrollView contentContainerStyle={styles.formContainer}>
+            <View style={styles.profilePicSection}>
+              <TouchableOpacity onPress={pickImage} style={styles.profilePicContainer}>
+                <Image 
+                  source={{ uri: profilePic || 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2' }} 
+                  style={styles.profilePic} 
+                />
+                <View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}>
+                  <Camera size={16} color="white" />
+                </View>
+              </TouchableOpacity>
+              <Text style={[styles.profilePicLabel, { color: colors.secondaryText }]}>Tap to change photo</Text>
+            </View>
+            
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Full Name</Text>
               <TextInput
@@ -213,6 +248,35 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 24,
+  },
+  profilePicSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profilePicContainer: {
+    position: 'relative',
+  },
+  profilePic: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+  },
+  profilePicLabel: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 8,
   },
   inputGroup: {
     marginBottom: 20,
