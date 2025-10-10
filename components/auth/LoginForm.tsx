@@ -8,10 +8,11 @@ import { Mail, Lock, LogIn } from 'lucide-react-native';
 export default function LoginForm() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { login } = useAuth();
+  const { login, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -20,10 +21,63 @@ export default function LoginForm() {
     }
 
     try {
+      setError('');
       await login(email, password);
       router.replace('/(tabs)');
-    } catch (err) {
-      setError('Invalid credentials. Please try again.');
+    } catch (err: any) {
+      const errorCode = err.code;
+      let errorMessage = 'Something went wrong. Please try again.';
+      
+      switch (errorCode) {
+        case 'auth/user-not-found':
+        case 'auth/invalid-email':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          errorMessage = 'Incorrect password. Please try again.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your connection.';
+          break;
+        default:
+          errorMessage = 'Invalid email or password. Please try again.';
+      }
+      
+      setError(errorMessage);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    try {
+      setError('');
+      setResetMessage('');
+      await resetPassword(email);
+      setResetMessage('Password reset email sent! Check your inbox.');
+    } catch (err: any) {
+      const errorCode = err.code;
+      let errorMessage = 'Failed to send reset email';
+      
+      switch (errorCode) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        default:
+          errorMessage = 'Failed to send reset email. Please try again.';
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -32,6 +86,12 @@ export default function LoginForm() {
       {error ? (
         <View style={[styles.errorContainer, { backgroundColor: colors.error + '20' }]}>
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        </View>
+      ) : null}
+
+      {resetMessage ? (
+        <View style={[styles.successContainer, { backgroundColor: colors.primary + '20' }]}>
+          <Text style={[styles.successText, { color: colors.primary }]}>{resetMessage}</Text>
         </View>
       ) : null}
 
@@ -64,7 +124,7 @@ export default function LoginForm() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.forgotPassword}>
+      <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
         <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
           Forgot Password?
         </Text>
@@ -78,25 +138,7 @@ export default function LoginForm() {
         <Text style={styles.loginButtonText}>Login</Text>
       </TouchableOpacity>
 
-      <View style={styles.dividerContainer}>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <Text style={[styles.dividerText, { color: colors.secondaryText }]}>
-          Or login with
-        </Text>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      </View>
 
-      <TouchableOpacity
-        style={[styles.googleButton, { backgroundColor: colors.cardBackground }]}
-      >
-        <View style={styles.googleIconContainer}>
-          {/* Replace with Google icon */}
-          <Text style={styles.googleText}>G</Text>
-        </View>
-        <Text style={[styles.googleButtonText, { color: colors.text }]}>
-          Continue with Google
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -111,6 +153,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    textAlign: 'center',
+  },
+  successContainer: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  successText: {
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
     textAlign: 'center',
@@ -158,45 +210,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins-Bold',
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-  },
-  googleButton: {
-    flexDirection: 'row',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  googleIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#DB4437',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  googleText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: 'Poppins-Bold',
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Medium',
-  },
+
 });

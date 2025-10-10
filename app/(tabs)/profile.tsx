@@ -84,23 +84,6 @@ export default function ProfileScreen() {
             />
           </View>
           
-          <View style={styles.preferenceRow}>
-            <Text style={[styles.preferenceLabel, { color: colors.text }]}>Push Notifications</Text>
-            <Switch
-              value={true}
-              trackColor={{ false: '#D1D1D6', true: colors.primary }}
-              thumbColor={'white'}
-            />
-          </View>
-          
-          <View style={styles.preferenceRow}>
-            <Text style={[styles.preferenceLabel, { color: colors.text }]}>Email Updates</Text>
-            <Switch
-              value={false}
-              trackColor={{ false: '#D1D1D6', true: colors.primary }}
-              thumbColor={'white'}
-            />
-          </View>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.cardBackground }]}>

@@ -1,6 +1,16 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { auth, db } from '@/config/firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 type User = {
   id: string;
@@ -19,6 +29,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, userData: any) => Promise<void>;
   logout: () => void;
+  resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<User>) => Promise<void>;
 };
 
@@ -37,46 +48,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const userJson = await AsyncStorage.getItem('user');
-        if (userJson) {
-          setUser(JSON.parse(userJson));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userData = userDoc.data();
+          
+          const user = {
+            id: firebaseUser.uid,
+            name: userData?.name || firebaseUser.displayName || 'User',
+            email: firebaseUser.email!,
+            profilePic: userData?.profilePic || firebaseUser.photoURL,
+            country: userData?.country,
+            languages: userData?.languages || ['English'],
+            interests: userData?.interests || [],
+          };
+          
+          setUser(user);
+          await AsyncStorage.setItem('user', JSON.stringify(user));
+        } catch (error) {
+          console.error('Error loading user data:', error);
         }
-      } catch (error) {
-        console.error('Error loading user from storage:', error);
-      } finally {
-        setIsLoading(false);
+      } else {
+        setUser(null);
+        await AsyncStorage.removeItem('user');
       }
-    };
-    
-    loadUser();
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // This is a mock login - in a real app, you'd make an API call here
-      // Simulate a network request
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
       
-      // Mock user data
-      const mockUser = {
-        id: '123',
-        name: 'John Doe',
-        email: email,
-        profilePic: 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-        country: 'United States',
-        languages: ['English', 'Spanish'],
-        interests: ['Music', 'Sports', 'Technology'],
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      const userData = userDoc.data();
+      
+      const user = {
+        id: firebaseUser.uid,
+        name: userData?.name || firebaseUser.displayName || 'User',
+        email: firebaseUser.email!,
+        profilePic: userData?.profilePic || firebaseUser.photoURL,
+        country: userData?.country,
+        languages: userData?.languages || ['English'],
+        interests: userData?.interests || [],
       };
       
-      setUser(mockUser);
-      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
-      await AsyncStorage.setItem('userToken', 'mock-jwt-token');
-    } catch (error) {
-      throw new Error('Login failed');
+      setUser(user);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+    } catch (error: any) {
+      throw new Error(error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -86,26 +113,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      // This is a mock signup - in a real app, you'd make an API call here
-      // Simulate a network request
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
       
-      // Create user with provided data
+      // Create user document in Firestore
       const newUser = {
-        id: Date.now().toString(),
+        id: firebaseUser.uid,
         name: userData.fullName,
-        email: email,
+        email: firebaseUser.email!,
         profilePic: 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         country: userData.country,
         languages: ['English'],
         interests: ['Music', 'Sports', 'Technology'],
+        createdAt: new Date().toISOString(),
       };
+      
+      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
       
       setUser(newUser);
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
-      await AsyncStorage.setItem('userToken', 'mock-jwt-token');
-    } catch (error) {
-      throw new Error('Signup failed');
+    } catch (error: any) {
+      throw new Error(error.message || 'Signup failed');
     } finally {
       setIsLoading(false);
     }
@@ -113,12 +141,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      await signOut(auth);
       await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('userToken');
       setUser(null);
       router.replace('/auth');
     } catch (error) {
       console.error('Error during logout:', error);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to send reset email');
     }
   };
 
@@ -127,6 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const updatedUser = { ...user, ...data };
+      
+      // Update in Firestore
+      await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
+      
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (error) {
@@ -144,6 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         logout,
+        resetPassword,
         updateUserProfile,
       }}
     >

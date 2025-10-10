@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Modal, ScrollView, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { X, Check } from 'lucide-react-native';
 
 type ProfileEditModalProps = {
@@ -11,16 +12,37 @@ type ProfileEditModalProps = {
 
 export default function ProfileEditModal({ visible, onClose, userData }: ProfileEditModalProps) {
   const { colors } = useTheme();
+  const { updateUserProfile } = useAuth();
   
   const [name, setName] = useState(userData?.name || '');
   const [country, setCountry] = useState(userData?.country || '');
   const [languages, setLanguages] = useState(userData?.languages?.join(', ') || '');
   const [interests, setInterests] = useState(userData?.interests?.join(', ') || '');
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSave = () => {
-    // Here you would normally save the updated profile data
-    // For this example, we'll just close the modal
-    onClose();
+  const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const updatedData = {
+        name: name.trim(),
+        country: country.trim(),
+        languages: languages.split(',').map(lang => lang.trim()).filter(lang => lang),
+        interests: interests.split(',').map(interest => interest.trim()).filter(interest => interest),
+      };
+      
+      await updateUserProfile(updatedData);
+      Alert.alert('Success', 'Profile updated successfully!');
+      onClose();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -37,7 +59,11 @@ export default function ProfileEditModal({ visible, onClose, userData }: Profile
               <X size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
-            <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+            <TouchableOpacity 
+              onPress={handleSave} 
+              style={[styles.saveButton, { opacity: isLoading ? 0.5 : 1 }]}
+              disabled={isLoading}
+            >
               <Check size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -127,10 +153,16 @@ export default function ProfileEditModal({ visible, onClose, userData }: Profile
             </View>
             
             <TouchableOpacity 
-              style={[styles.saveButtonLarge, { backgroundColor: colors.primary }]}
+              style={[styles.saveButtonLarge, { 
+                backgroundColor: colors.primary,
+                opacity: isLoading ? 0.5 : 1 
+              }]}
               onPress={handleSave}
+              disabled={isLoading}
             >
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

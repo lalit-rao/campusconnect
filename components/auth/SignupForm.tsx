@@ -28,11 +28,37 @@ export default function SignupForm() {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     try {
+      setError('');
       await signup(email, password, { fullName, country });
       router.replace('/(tabs)');
-    } catch (err) {
-      setError('Sign up failed. Please try again.');
+    } catch (err: any) {
+      const errorCode = err.code;
+      let errorMessage = 'Sign up failed. Please try again.';
+      
+      switch (errorCode) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'An account with this email already exists.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak. Use at least 6 characters.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your connection.';
+          break;
+        default:
+          errorMessage = 'Sign up failed. Please try again.';
+      }
+      
+      setError(errorMessage);
     }
   };
 
