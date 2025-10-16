@@ -358,21 +358,7 @@ export default function EventsScreen() {
           </View>
         </View>
 
-        <View style={styles.eventActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          >
-            <Text style={styles.actionButtonText}>Add to Calendar</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#85b95f' }]}
-          >
-            <Text style={[styles.actionButtonText, { color: colors.text }]}>
-              I'm Interested
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </View>
   );
@@ -439,11 +425,7 @@ export default function EventsScreen() {
         />
       </View>
 
-      <TouchableOpacity
-        style={[styles.floatingButton, { backgroundColor: colors.primary }]}
-      >
-        <Plus size={24} color="white" />
-      </TouchableOpacity>
+
     </SafeAreaView>
   );
 }
@@ -559,23 +541,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
   },
-  eventActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-  },
+
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
@@ -584,19 +550,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins-Regular',
   },
-  floatingButton: {
-    position: 'absolute',
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
+
 });
