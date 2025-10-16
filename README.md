@@ -92,7 +92,7 @@ Run the app using:
 
 <!-- Replace the image link below with your actual QR code image -->
 <p align="center">
-  <img src="https://drive.google.com/file/d/1Q1TI4XFsi2rwej1jvVzazwqhccIUejV2/view?usp=sharing" alt="Download Campus Connect QR" width="200"/>
+  <img src="https://drive.google.com/uc?export=view&id=1Q1TI4XFsi2rwej1jvVzazwqhccIUejV2" alt="Download Campus Connect QR" width="200"/>
 </p>
 
 **Instructions:**
